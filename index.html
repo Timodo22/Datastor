@@ -42,7 +42,7 @@
   let currentId = null;
 
   async function createLogin() {
-    const res = await fetch(`${API_URL}/request/create`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ issuer: "paradym", purpose: "Login" })});
+    const res = await fetch(`${API_URL}/request/create`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ issuer: "local", purpose: "Login" })});
     const data = await res.json();
     currentId = data.request_id;
 
@@ -72,3 +72,4 @@
   </script>
 </body>
 </html>
+
