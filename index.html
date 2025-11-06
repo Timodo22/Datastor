@@ -1,134 +1,74 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paradym Verified Credential Verifier</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #222;
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container { max-width: 1000px; margin: auto; }
-        .card {
-            background: white; padding: 30px; border-radius: 15px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3); margin-bottom: 20px;
-        }
-        .btn { background: linear-gradient(135deg, #667eea, #764ba2); color: white;
-            border: none; padding: 12px 30px; border-radius: 8px;
-            font-weight: 600; cursor: pointer; }
-        .btn:hover { transform: translateY(-2px); }
-        .info-box { background: #e7f3ff; border-left: 4px solid #2196F3;
-            padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        .json-display {
-            background: #f8f9fa; border: 1px solid #e0e0e0;
-            border-radius: 8px; padding: 15px; font-family: monospace;
-            white-space: pre-wrap; max-height: 400px; overflow-y: auto;
-        }
-        select, input { width: 100%; padding: 10px; border: 2px solid #e0e0e0;
-            border-radius: 8px; font-size: 14px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paradym Login Demo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma; background: #eef2ff; padding: 20px; }
+    .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .btn { background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn:hover { background: #4f46e5; }
+    pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; }
+    #login-status { font-weight: bold; color: green; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="card">
-            <h1>🔐 Paradym VC Verifier</h1>
-            <p>OpenID4VP compatible demo met lokale of Paradym verificatie.</p>
+  <div class="card">
+    <h1>🔐 Paradym Wallet Login</h1>
+    <p>Klik om in te loggen met je Paradym Wallet.</p>
+    <button class="btn" onclick="createLogin()">Genereer QR Code</button>
+  </div>
 
-            <div class="info-box">
-                <strong>Hoe het werkt:</strong>
-                <ul>
-                    <li>Kies type verificatie (Paradym of lokaal)</li>
-                    <li>Selecteer credentials en doel</li>
-                    <li>Scan QR code met wallet</li>
-                    <li>Bekijk resultaten live</li>
-                </ul>
-            </div>
+  <div class="card" id="qr-card" style="display:none;">
+    <h2>📱 Scan met je Wallet</h2>
+    <div id="qrcode"></div>
+    <p><strong>URL:</strong></p>
+    <pre id="openid-url"></pre>
+  </div>
 
-            <form id="request-form" onsubmit="createRequest(event)">
-                <label>Issuer:</label>
-                <select id="issuer">
-                    <option value="local">Lokale Verifier</option>
-                    <option value="paradym">Paradym Verifier</option>
-                </select>
+  <div class="card" id="result-card" style="display:none;">
+    <h2>✅ Ingelogd!</h2>
+    <p id="login-status">Wallet geverifieerd</p>
+    <h3>👤 Wallet Holder:</h3>
+    <pre id="holder"></pre>
+    <h3>📜 Payload Data:</h3>
+    <pre id="payload"></pre>
+  </div>
 
-                <label style="margin-top: 10px;">Credential Types:</label>
-                <select id="credential-type" multiple size="4">
-                    <option value="VerifiableId" selected>VerifiableId</option>
-                    <option value="VerifiableDiploma">VerifiableDiploma</option>
-                    <option value="UniversityDegree">UniversityDegree</option>
-                </select>
+  <script>
+  const API_URL = "https://dockerapi-aika.onrender.com";
+  let currentId = null;
 
-                <label style="margin-top: 10px;">Doel:</label>
-                <input id="purpose" value="Identity Verification">
-
-                <button class="btn" style="margin-top:15px;">Genereer QR Code</button>
-            </form>
-        </div>
-
-        <div id="qr-section" class="card" style="display:none;">
-            <h2>📱 Scan met je Wallet</h2>
-            <div id="qrcode"></div>
-            <p><strong>OpenID4VP URL:</strong></p>
-            <div class="json-display" id="openid-url"></div>
-        </div>
-
-        <div id="results" class="card" style="display:none;">
-            <h2>✅ Resultaten</h2>
-            <div id="holder" class="json-display"></div>
-            <div id="credentials" class="json-display"></div>
-            <div id="payload" class="json-display"></div>
-        </div>
-    </div>
-
-<script>
-const API_URL = "https://dockerapi-aika.onrender.com";
-let currentRequestId = null;
-let poller = null;
-
-async function createRequest(e) {
-    e.preventDefault();
-    const issuer = document.getElementById("issuer").value;
-    const creds = Array.from(document.getElementById("credential-type").selectedOptions).map(o=>o.value);
-    const purpose = document.getElementById("purpose").value;
-    const res = await fetch(`${API_URL}/request/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requested_credentials: creds, purpose, issuer })
-    });
+  async function createLogin() {
+    const res = await fetch(`${API_URL}/request/create`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ issuer: "paradym", purpose: "Login" })});
     const data = await res.json();
-    if (!data.request_id) return alert("Fout bij aanmaken request");
-    currentRequestId = data.request_id;
+    currentId = data.request_id;
+
     document.getElementById("openid-url").textContent = data.openid_url;
-    const qr = document.getElementById("qrcode");
-    qr.innerHTML = "";
-    new QRCode(qr, { text: data.openid_url, width: 300, height: 300 });
-    document.getElementById("qr-section").style.display = "block";
-    startPolling();
-}
+    new QRCode(document.getElementById("qrcode"), { text: data.openid_url, width: 250, height: 250 });
+    document.getElementById("qr-card").style.display = "block";
 
-function startPolling() {
-    poller = setInterval(async ()=>{
-        const res = await fetch(`${API_URL}/presentation/${currentRequestId}/status`);
-        const data = await res.json();
-        if (data.status === "completed") {
-            clearInterval(poller);
-            showResults(data.decoded);
-        }
+    pollStatus();
+  }
+
+  function pollStatus() {
+    const timer = setInterval(async () => {
+      const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
+      const data = await res.json();
+      if (data.status === "completed") {
+        clearInterval(timer);
+        showLogin(data);
+      }
     }, 2000);
-}
+  }
 
-function showResults(decoded) {
-    document.getElementById("results").style.display = "block";
-    document.getElementById("holder").textContent = JSON.stringify(decoded.holder, null, 2);
-    document.getElementById("credentials").textContent = JSON.stringify(decoded.credentials, null, 2);
-    document.getElementById("payload").textContent = JSON.stringify(decoded.payload, null, 2);
-}
-</script>
+  function showLogin(data) {
+    document.getElementById("result-card").style.display = "block";
+    document.getElementById("holder").textContent = JSON.stringify(data.holder, null, 2);
+    document.getElementById("payload").textContent = JSON.stringify(data.payload, null, 2);
+  }
+  </script>
 </body>
 </html>
-
