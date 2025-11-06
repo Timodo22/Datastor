@@ -70,7 +70,7 @@
 
   <div class="card" id="qr-card" style="display:none;">
     <h2>📱 Scan met je Paradym Wallet</h2>
-    <div id="qrcode" style="margin: 20px auto; width: 250px; height: 250px;"></div>
+    <div id="qrcode" style="margin: 20px auto; width: 350px; height: 350px;"></div>
     <p><strong>Of open direct in de app:</strong></p>
     <a id="wallet-link" class="link" href="#" target="_blank">Open in Paradym Wallet</a>
     <p><strong>Request URL:</strong></p>
@@ -91,41 +91,56 @@
   let currentId = null;
 
   async function createLogin() {
-    // Reset vorige QR en status
+    // Reset vorige UI
     document.getElementById("qrcode").innerHTML = "";
     document.getElementById("wallet-link").href = "#";
     document.getElementById("openid-url").textContent = "";
     document.getElementById("result-card").style.display = "none";
 
-    const res = await fetch(`${API_URL}/request/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ issuer: "local", purpose: "Login" })
-    });
+    try {
+      const res = await fetch(`${API_URL}/request/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issuer: "local", purpose: "Login" })
+      });
 
-    const data = await res.json();
+      const data = await res.json();
+      console.log("Backend response:", data);
 
-    if (!data.openid_url) {
-      alert("Fout bij aanmaken van verificatie: " + JSON.stringify(data));
-      return;
+      if (!data.openid_url) {
+        alert("⚠️ Fout bij aanmaken van verificatie:\n" + JSON.stringify(data, null, 2));
+        return;
+      }
+
+      currentId = data.request_id;
+
+      // Toon QR en directe link
+      document.getElementById("openid-url").textContent = data.openid_url;
+      document.getElementById("wallet-link").href = data.openid_url;
+
+      // ⚙️ Probeer QR-code aan te maken
+      try {
+        new QRCode(document.getElementById("qrcode"), {
+          text: data.openid_url,
+          width: 350,
+          height: 350,
+          correctLevel: QRCode.CorrectLevel.L
+        });
+      } catch (err) {
+        console.error("QR-code fout:", err);
+        document.getElementById("qrcode").innerHTML =
+          `<p style='color:red;'>QR-code te lang.<br>Open handmatig: 
+          <a href="${data.openid_url}" target="_blank">${data.openid_url}</a></p>`;
+      }
+
+      document.getElementById("qr-card").style.display = "block";
+
+      pollStatus();
+
+    } catch (error) {
+      console.error("Fout bij aanmaken login:", error);
+      alert("Er ging iets mis: " + error.message);
     }
-
-    currentId = data.request_id;
-
-    // Toon de QR en de link
-    document.getElementById("openid-url").textContent = data.openid_url;
-    document.getElementById("wallet-link").href = data.openid_url;
-
-    new QRCode(document.getElementById("qrcode"), {
-      text: data.openid_url,
-      width: 250,
-      height: 250
-    });
-
-    document.getElementById("qr-card").style.display = "block";
-
-    // Begin polling voor status
-    pollStatus();
   }
 
   function pollStatus() {
