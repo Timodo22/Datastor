@@ -6,15 +6,62 @@
   <title>Paradym Login Demo</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    body { font-family: 'Segoe UI', Tahoma; background: #eef2ff; padding: 20px; }
-    .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .btn { background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-    .btn:hover { background: #4f46e5; }
-    pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; }
-    #login-status { font-weight: bold; color: green; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #eef2ff;
+      padding: 30px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin-bottom: 25px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .btn {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .btn:hover {
+      background: #4f46e5;
+    }
+    pre {
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 14px;
+    }
+    #login-status {
+      font-weight: bold;
+      color: green;
+    }
+    a.link {
+      display: inline-block;
+      margin-top: 10px;
+      text-decoration: none;
+      background: #e0e7ff;
+      color: #312e81;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: 0.2s;
+    }
+    a.link:hover {
+      background: #c7d2fe;
+    }
   </style>
 </head>
 <body>
+
   <div class="card">
     <h1>🔐 Paradym Wallet Login</h1>
     <p>Klik om in te loggen met je Paradym Wallet.</p>
@@ -22,15 +69,17 @@
   </div>
 
   <div class="card" id="qr-card" style="display:none;">
-    <h2>📱 Scan met je Wallet</h2>
-    <div id="qrcode"></div>
-    <p><strong>URL:</strong></p>
+    <h2>📱 Scan met je Paradym Wallet</h2>
+    <div id="qrcode" style="margin: 20px auto; width: 250px; height: 250px;"></div>
+    <p><strong>Of open direct in de app:</strong></p>
+    <a id="wallet-link" class="link" href="#" target="_blank">Open in Paradym Wallet</a>
+    <p><strong>Request URL:</strong></p>
     <pre id="openid-url"></pre>
   </div>
 
   <div class="card" id="result-card" style="display:none;">
     <h2>✅ Ingelogd!</h2>
-    <p id="login-status">Wallet geverifieerd</p>
+    <p id="login-status">Wallet geverifieerd ✅</p>
     <h3>👤 Wallet Holder:</h3>
     <pre id="holder"></pre>
     <h3>📜 Resultaat Data:</h3>
@@ -42,36 +91,59 @@
   let currentId = null;
 
   async function createLogin() {
-    // Reset vorige QR
+    // Reset vorige QR en status
     document.getElementById("qrcode").innerHTML = "";
+    document.getElementById("wallet-link").href = "#";
+    document.getElementById("openid-url").textContent = "";
+    document.getElementById("result-card").style.display = "none";
 
     const res = await fetch(`${API_URL}/request/create`, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ issuer: "local", purpose: "Login" })
     });
 
     const data = await res.json();
+
+    if (!data.openid_url) {
+      alert("Fout bij aanmaken van verificatie: " + JSON.stringify(data));
+      return;
+    }
+
     currentId = data.request_id;
 
+    // Toon de QR en de link
     document.getElementById("openid-url").textContent = data.openid_url;
-    new QRCode(document.getElementById("qrcode"), { text: data.openid_url, width: 250, height: 250 });
+    document.getElementById("wallet-link").href = data.openid_url;
+
+    new QRCode(document.getElementById("qrcode"), {
+      text: data.openid_url,
+      width: 250,
+      height: 250
+    });
+
     document.getElementById("qr-card").style.display = "block";
 
+    // Begin polling voor status
     pollStatus();
   }
 
   function pollStatus() {
     const timer = setInterval(async () => {
-      const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
-      const data = await res.json();
+      try {
+        const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
+        if (!res.ok) return;
+        const data = await res.json();
 
-      if (data.status === "completed") {
-        clearInterval(timer);
-        showLogin(data);
-      } else if (data.status === "failed") {
-        clearInterval(timer);
-        alert("Verificatie mislukt of geannuleerd.");
+        if (data.status === "completed") {
+          clearInterval(timer);
+          showLogin(data);
+        } else if (data.status === "failed") {
+          clearInterval(timer);
+          alert("Verificatie mislukt of geannuleerd.");
+        }
+      } catch (err) {
+        console.error("Poll error:", err);
       }
     }, 2000);
   }
@@ -82,5 +154,6 @@
     document.getElementById("payload").textContent = JSON.stringify(data.result, null, 2);
   }
   </script>
+
 </body>
 </html>
