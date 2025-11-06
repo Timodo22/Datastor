@@ -33,7 +33,7 @@
     <p id="login-status">Wallet geverifieerd</p>
     <h3>👤 Wallet Holder:</h3>
     <pre id="holder"></pre>
-    <h3>📜 Payload Data:</h3>
+    <h3>📜 Resultaat Data:</h3>
     <pre id="payload"></pre>
   </div>
 
@@ -42,7 +42,15 @@
   let currentId = null;
 
   async function createLogin() {
-    const res = await fetch(`${API_URL}/request/create`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ issuer: "local", purpose: "Login" })});
+    // Reset vorige QR
+    document.getElementById("qrcode").innerHTML = "";
+
+    const res = await fetch(`${API_URL}/request/create`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ issuer: "local", purpose: "Login" })
+    });
+
     const data = await res.json();
     currentId = data.request_id;
 
@@ -57,19 +65,22 @@
     const timer = setInterval(async () => {
       const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
       const data = await res.json();
+
       if (data.status === "completed") {
         clearInterval(timer);
         showLogin(data);
+      } else if (data.status === "failed") {
+        clearInterval(timer);
+        alert("Verificatie mislukt of geannuleerd.");
       }
     }, 2000);
   }
 
   function showLogin(data) {
     document.getElementById("result-card").style.display = "block";
-    document.getElementById("holder").textContent = JSON.stringify(data.holder, null, 2);
-    document.getElementById("payload").textContent = JSON.stringify(data.payload, null, 2);
+    document.getElementById("holder").textContent = JSON.stringify(data.holder || data.result?.holder, null, 2);
+    document.getElementById("payload").textContent = JSON.stringify(data.result, null, 2);
   }
   </script>
 </body>
 </html>
-
