@@ -1,144 +1,105 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Paradym Wallet Login</title>
-  <!-- Fallback QR generator (alleen gebruiken als iframe niet mag/kan) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #eef2ff; padding: 40px; color: #111827; }
     .card { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); max-width: 760px; margin: 20px auto; }
-    .title { margin: 0 0 8px; }
     .btn { background: #6366f1; color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 16px; transition: background .2s; }
     .btn:hover { background: #4f46e5; }
     a.link { display: inline-block; background: #e0e7ff; color: #312e81; text-decoration: none; padding: 8px 12px; border-radius: 6px; margin-top: 10px; }
     a.link:hover { background: #c7d2fe; }
     pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
     iframe { width: 100%; height: 520px; border: none; margin-top: 16px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-    .muted { color: #6b7280; font-size: 14px; }
-    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    #fallback-qr { width: 260px; height: 260px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1 class="title">🔐 Paradym Wallet Login</h1>
-    <p class="muted">Klik op de knop om een nieuwe verificatie-aanvraag te starten.</p>
-    <div class="row">
-      <button class="btn" onclick="createLogin()">Genereer nieuwe QR</button>
-      <span id="status" class="muted"></span>
-    </div>
+    <h1>🔐 Paradym Wallet Login</h1>
+    <p>Klik op de knop om in te loggen met je Paradym Wallet.</p>
+    <button class="btn" onclick="createLogin()">Genereer QR</button>
+    <div id="status"></div>
   </div>
 
   <div class="card" id="qr-card" style="display:none;">
-    <h2 class="title">📱 Scan met je Paradym Wallet</h2>
-    <p>Je kunt de officiële QR-pagina van Paradym hieronder gebruiken, of openen in een nieuw tabblad.</p>
-
-    <!-- Officiële Paradym QR pagina (aanbevolen!) -->
-    <iframe id="qr-frame" title="Paradym QR"></iframe>
-
-    <!-- Direct openen in een nieuw tabblad -->
-    <a id="wallet-link" class="link" target="_blank" rel="noopener">Open QR-pagina op Paradym</a>
-
-    <!-- De ruwe URL tonen (handig voor debug) -->
+    <h2>📱 Scan met je Paradym Wallet</h2>
+    <a id="wallet-link" class="link" target="_blank" rel="noopener">Open in Paradym</a>
     <pre id="openid-url"></pre>
-
-    <!-- Optionele fallback QR (kan groot zijn; alleen gebruiken als nodig) -->
-    <div style="margin-top:16px;">
-      <details>
-        <summary>Fallback QR (alleen gebruiken als iframe niet werkt)</summary>
-        <div id="fallback-qr" style="margin-top:12px;"></div>
-      </details>
-    </div>
+    <iframe id="qr-frame"></iframe>
   </div>
 
   <div class="card" id="loading-card" style="display:none;">
-    <h2 class="title">⏳ Bezig met verificatie...</h2>
-    <p>We controleren je wallet. Je wordt zo doorgestuurd naar je dashboard.</p>
+    <h2>⏳ Bezig met verificatie...</h2>
+    <p>Je wordt automatisch doorgestuurd zodra je wallet-verificatie is voltooid.</p>
   </div>
 
   <script>
-    const API_URL = location.origin; // jouw backend draait op hetzelfde domein (Render)
+    const API_URL = location.origin;
     let currentId = null;
     let pollTimer = null;
 
     async function createLogin() {
-      try {
-        setStatus("Verzoek aanmaken…");
-        stopPolling();
+      document.getElementById("status").textContent = "Bezig met aanmaken…";
 
+      let data;
+      try {
         const res = await fetch(`${API_URL}/request/create`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ issuer: "local", purpose: "Login" })
         });
 
-        const data = await res.json();
-        if (!res.ok) {
-          alert(`Fout bij aanmaken: ${res.status} ${res.statusText}\n${JSON.stringify(data)}`);
-          return;
-        }
-        if (!data.request_id || !data.openid_url) {
-          alert("Ongeldige response van backend: " + JSON.stringify(data));
-          return;
-        }
-
-        currentId = data.request_id;
-
-        // Gebruik de juiste links
-        const linkUrl = (data.openid_url || "").trim();       // klik-link (authorizationRequestUri)
-        const qrUrl   = (data.openid_qr_url || linkUrl).trim(); // QR-variant (authorizationRequestQrUri als beschikbaar)
-
-        // Toon in UI
-        document.getElementById("qr-card").style.display = "block";
-        document.getElementById("loading-card").style.display = "none";
-        document.getElementById("wallet-link").href = linkUrl;
-        document.getElementById("openid-url").textContent = qrUrl;
-
-        // 1) Toon officiële QR pagina in iframe (aanbevolen)
-        document.getElementById("qr-frame").src = qrUrl;
-
-        // 2) (Optioneel) fallback QR zelf genereren (kan falen bij hele lange URL's)
+        // 👇 veilige JSON parse
         try {
-          const qrDiv = document.getElementById("fallback-qr");
-          qrDiv.innerHTML = "";
-          new QRCode(qrDiv, { text: qrUrl, width: 260, height: 260 });
-        } catch (e) {
-          console.warn("Fallback QR genereren mislukt:", e);
+          data = await res.json();
+        } catch {
+          const rawText = await res.text();
+          throw new Error("Geen geldige JSON: " + rawText);
         }
 
-        // Start polling
-        startPolling();
-        setStatus("Aanvraag aangemaakt. Wacht op wallet-verificatie…");
+        if (!res.ok) throw new Error(`Fout: ${res.status} ${res.statusText}`);
       } catch (err) {
-        console.error(err);
-        alert("Onbekende fout bij aanmaken verzoek.");
+        console.error("Fout bij aanmaken request:", err);
+        alert("Fout bij aanmaken verzoek: " + err.message);
+        return;
       }
+
+      if (!data || !data.request_id || !data.openid_url) {
+        alert("Ongeldige server response: " + JSON.stringify(data));
+        return;
+      }
+
+      currentId = data.request_id;
+      const qrUrl = data.openid_qr_url || data.openid_url;
+
+      document.getElementById("qr-card").style.display = "block";
+      document.getElementById("wallet-link").href = qrUrl;
+      document.getElementById("openid-url").textContent = qrUrl;
+      document.getElementById("qr-frame").src = qrUrl;
+
+      startPolling();
     }
 
     function startPolling() {
       stopPolling();
       pollTimer = setInterval(async () => {
         try {
-          if (!currentId) return;
           const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
           if (!res.ok) return;
           const data = await res.json();
 
           if (data.status === "completed") {
             stopPolling();
-            // Sla resultaat op voor je dashboard
             localStorage.setItem("wallet_session", JSON.stringify(data.result || data));
             document.getElementById("qr-card").style.display = "none";
             document.getElementById("loading-card").style.display = "block";
-            setTimeout(() => window.location.href = "/dashboard.html", 1000);
-          } else if (data.status === "failed") {
-            stopPolling();
-            alert("❌ Verificatie mislukt of geannuleerd.");
+            setTimeout(() => (window.location.href = "/dashboard.html"), 1000);
           }
         } catch (e) {
-          console.warn("Poll error:", e);
+          console.warn("Polling error:", e);
         }
       }, 2000);
     }
@@ -148,10 +109,6 @@
         clearInterval(pollTimer);
         pollTimer = null;
       }
-    }
-
-    function setStatus(msg) {
-      document.getElementById("status").textContent = msg || "";
     }
   </script>
 </body>
