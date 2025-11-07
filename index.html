@@ -1,104 +1,160 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Paradym Login Demo</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paradym Wallet Login</title>
 
-  <!-- ✅ Gebruik Qrious in plaats van qrcodejs -->
+  <!-- QR library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #eef2ff; padding: 30px; color: #111827; }
-    .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: 20px auto; }
-    .btn { background: #6366f1; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 16px; }
-    .btn:hover { background: #4f46e5; }
-    pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
-    a.link { background: #e0e7ff; padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #312e81; display: inline-block; margin-top: 10px; }
-    a.link:hover { background: #c7d2fe; }
-    .small { color: #6b7280; font-size: 13px; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #eef2ff;
+      padding: 40px;
+      color: #111827;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 25px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      max-width: 600px;
+      margin: 20px auto;
+    }
+
+    h1, h2 {
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 16px;
+      transition: background 0.2s ease;
+    }
+
+    .btn:hover {
+      background: #4f46e5;
+    }
+
+    a.link {
+      background: #e0e7ff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #312e81;
+      display: inline-block;
+      margin-top: 10px;
+    }
+
+    a.link:hover {
+      background: #c7d2fe;
+    }
+
+    pre {
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+
+    #status {
+      font-size: 14px;
+      color: #6b7280;
+    }
   </style>
 </head>
 <body>
-
   <div class="card">
     <h1>🔐 Paradym Wallet Login</h1>
-    <p>Klik om in te loggen met je Paradym Wallet.</p>
+    <p>Klik hieronder om in te loggen met je Paradym Wallet.</p>
     <button class="btn" onclick="createLogin()">Genereer QR Code</button>
+    <p id="status"></p>
   </div>
 
   <div class="card" id="qr-card" style="display:none;">
     <h2>📱 Scan met je Wallet</h2>
-    <canvas id="qrcode" width="260" height="260" style="margin: 10px auto; display:block;"></canvas>
-    <a id="wallet-link" class="link" href="#" target="_blank">➡️ Open in Paradym Wallet</a>
+    <canvas id="qrcode" width="260" height="260" style="margin: 20px auto; display: block;"></canvas>
+    <a id="wallet-link" class="link" href="#" target="_blank">Open in Paradym Wallet</a>
     <pre id="openid-url"></pre>
   </div>
 
-  <div class="card" id="result-card" style="display:none;">
-    <h2>✅ Ingelogd!</h2>
-    <p id="login-status">Wallet geverifieerd ✅</p>
-    <h3>👤 Gebruiker:</h3>
-    <pre id="holder"></pre>
-    <h3>📜 Resultaat Data:</h3>
-    <pre id="payload"></pre>
-    <a href="/dashboard.html" class="btn">➡️ Naar Dashboard</a>
+  <div class="card" id="loading-card" style="display:none;">
+    <h2>⏳ Bezig met verificatie...</h2>
+    <p>Even geduld, we controleren je wallet.</p>
   </div>
 
   <script>
-  const API_URL = "https://dockerapi-aika.onrender.com";
-  let currentId = null;
+    const API_URL = "https://dockerapi-aika.onrender.com";
+    let currentId = null;
 
-  async function createLogin() {
-    const res = await fetch(`${API_URL}/request/create`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ issuer: "local", purpose: "Login" })
-    });
+    async function createLogin() {
+      document.getElementById("status").textContent = "Verzoek aanmaken...";
+      const res = await fetch(`${API_URL}/request/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issuer: "local", purpose: "Login" })
+      });
 
-    const data = await res.json();
-    currentId = data.request_id;
-
-    const qrCanvas = document.getElementById("qrcode");
-    const qr = new QRious({
-      element: qrCanvas,
-      size: 260,
-      value: data.openid_url,
-      level: 'L'
-    });
-
-    document.getElementById("wallet-link").href = data.openid_url;
-    document.getElementById("openid-url").textContent = data.openid_url;
-    document.getElementById("qr-card").style.display = "block";
-
-    pollStatus();
-  }
-
-  function pollStatus() {
-    const timer = setInterval(async () => {
-      const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
-      if (!res.ok) return;
       const data = await res.json();
-
-      if (data.status === "completed") {
-        clearInterval(timer);
-        showLogin(data);
-      } else if (data.status === "failed") {
-        clearInterval(timer);
-        alert("❌ Verificatie mislukt of geannuleerd.");
+      if (!data.openid_url) {
+        alert("Fout bij aanmaken van verificatie: " + JSON.stringify(data));
+        return;
       }
-    }, 2000);
-  }
 
-  function showLogin(data) {
-    document.getElementById("qr-card").style.display = "none";
-    document.getElementById("result-card").style.display = "block";
-    document.getElementById("holder").textContent = JSON.stringify(data.holder || data.result?.holder, null, 2);
-    document.getElementById("payload").textContent = JSON.stringify(data.result, null, 2);
+      currentId = data.request_id;
 
-    // 🔐 Bewaar in localStorage voor dashboard
-    localStorage.setItem("wallet_session", JSON.stringify(data.result));
-  }
+      // QR genereren via Qrious
+      const qr = new QRious({
+        element: document.getElementById("qrcode"),
+        size: 260,
+        value: data.openid_url,
+        level: "L"
+      });
+
+      document.getElementById("wallet-link").href = data.openid_url;
+      document.getElementById("openid-url").textContent = data.openid_url;
+      document.getElementById("qr-card").style.display = "block";
+      document.getElementById("status").textContent = "QR gegenereerd — scan met je wallet.";
+
+      // Start polling
+      pollStatus();
+    }
+
+    function pollStatus() {
+      const timer = setInterval(async () => {
+        const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.status === "completed") {
+          clearInterval(timer);
+          document.getElementById("status").textContent = "✅ Wallet geverifieerd!";
+          document.getElementById("qr-card").style.display = "none";
+          document.getElementById("loading-card").style.display = "block";
+
+          // Sessie opslaan voor dashboard
+          localStorage.setItem("wallet_session", JSON.stringify(data.result || data));
+
+          // Automatisch doorsturen na 1,5 seconde
+          setTimeout(() => {
+            window.location.href = "/dashboard.html";
+          }, 1500);
+        } else if (data.status === "failed") {
+          clearInterval(timer);
+          alert("❌ Verificatie mislukt of geannuleerd.");
+        }
+      }, 2000);
+    }
   </script>
-
 </body>
 </html>
