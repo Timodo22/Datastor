@@ -2,69 +2,45 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Dashboard</title>
   <style>
-    body {
-      font-family: "Segoe UI", sans-serif;
-      background: #f3f4f6;
-      padding: 40px;
-      color: #111827;
-    }
-
-    .card {
-      background: white;
-      border-radius: 12px;
-      padding: 25px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-      max-width: 700px;
-      margin: 20px auto;
-    }
-
-    pre {
-      background: #f8fafc;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 13px;
-    }
-
-    .btn {
-      background: #6366f1;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      text-decoration: none;
-      font-weight: 500;
-      display: inline-block;
-      margin-top: 15px;
-    }
-
-    .btn:hover {
-      background: #4f46e5;
-    }
+    body { font-family: 'Segoe UI', sans-serif; background: #f5f7ff; padding: 40px; color: #111827; }
+    .card { background: white; border-radius: 14px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); max-width: 760px; margin: 20px auto; }
+    pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; }
+    .row { display: flex; gap: 12px; }
+    .btn { background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .btn:hover { background: #dc2626; }
+    a { color: #312e81; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>👤 Paradym Wallet Dashboard</h1>
-    <p id="welcome"></p>
-    <h3>Resultaat:</h3>
-    <pre id="wallet-data"></pre>
-    <a href="/frontend" class="btn">🔓 Uitloggen</a>
+    <h1>🎉 Ingelogd via Paradym Wallet</h1>
+    <p>Hieronder zie je de ruwe payload uit de verificatie (zoals opgeslagen door je backend).</p>
+    <pre id="payload">-</pre>
+    <div class="row">
+      <button class="btn" onclick="logout()">Uitloggen</button>
+      <a href="/frontend">Terug naar login</a>
+    </div>
   </div>
 
   <script>
-    const data = localStorage.getItem("wallet_session");
-
-    if (!data) {
-      document.getElementById("welcome").textContent = "Geen actieve sessie gevonden.";
-      document.getElementById("wallet-data").textContent = "Log opnieuw in via de startpagina.";
+    const raw = localStorage.getItem("wallet_session");
+    const pre = document.getElementById("payload");
+    if (raw) {
+      try {
+        pre.textContent = JSON.stringify(JSON.parse(raw), null, 2);
+      } catch {
+        pre.textContent = raw;
+      }
     } else {
-      const session = JSON.parse(data);
-      document.getElementById("welcome").textContent = "Welkom terug! Je wallet is succesvol geverifieerd ✅";
-      document.getElementById("wallet-data").textContent = JSON.stringify(session, null, 2);
+      pre.textContent = "Geen sessie gevonden. Ga terug naar de login.";
+    }
+
+    function logout() {
+      localStorage.removeItem("wallet_session");
+      window.location.href = "/frontend";
     }
   </script>
 </body>
