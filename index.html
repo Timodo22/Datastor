@@ -52,12 +52,14 @@
           body: JSON.stringify({ issuer: "local", purpose: "Login" })
         });
 
-        // 👇 veilige JSON parse
+        // ✅ Lees de body één keer
+        const rawText = await res.text();
+
+        // Probeer JSON te parsen
         try {
-          data = await res.json();
+          data = JSON.parse(rawText);
         } catch {
-          const rawText = await res.text();
-          throw new Error("Geen geldige JSON: " + rawText);
+          throw new Error("Server gaf geen geldig JSON terug: " + rawText);
         }
 
         if (!res.ok) throw new Error(`Fout: ${res.status} ${res.statusText}`);
