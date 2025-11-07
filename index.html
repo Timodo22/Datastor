@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Paradym Wallet Login</title>
 
-  <!-- QR library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <!-- Moderne QR library -->
+  <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
 
   <style>
     body {
@@ -41,9 +41,7 @@
       transition: background 0.2s ease;
     }
 
-    .btn:hover {
-      background: #4f46e5;
-    }
+    .btn:hover { background: #4f46e5; }
 
     a.link {
       background: #e0e7ff;
@@ -55,9 +53,7 @@
       margin-top: 10px;
     }
 
-    a.link:hover {
-      background: #c7d2fe;
-    }
+    a.link:hover { background: #c7d2fe; }
 
     pre {
       background: #f8fafc;
@@ -67,10 +63,7 @@
       font-size: 13px;
     }
 
-    #status {
-      font-size: 14px;
-      color: #6b7280;
-    }
+    #status { font-size: 14px; color: #6b7280; }
   </style>
 </head>
 <body>
@@ -83,7 +76,7 @@
 
   <div class="card" id="qr-card" style="display:none;">
     <h2>📱 Scan met je Wallet</h2>
-    <canvas id="qrcode" width="260" height="260" style="margin: 20px auto; display: block;"></canvas>
+    <div id="qrcode" style="margin: 20px auto; width: 280px; height: 280px;"></div>
     <a id="wallet-link" class="link" href="#" target="_blank">Open in Paradym Wallet</a>
     <pre id="openid-url"></pre>
   </div>
@@ -96,6 +89,7 @@
   <script>
     const API_URL = "https://dockerapi-aika.onrender.com";
     let currentId = null;
+    let qrCode = null;
 
     async function createLogin() {
       document.getElementById("status").textContent = "Verzoek aanmaken...";
@@ -112,21 +106,32 @@
       }
 
       currentId = data.request_id;
+      const url = data.openid_url.trim();
 
-      // QR genereren via Qrious
-      const qr = new QRious({
-        element: document.getElementById("qrcode"),
-        size: 260,
-        value: data.openid_url,
-        level: "L"
+      // ✅ Veilige QR generator (ondersteunt extreem lange URLs)
+      qrCode = new QRCodeStyling({
+        width: 280,
+        height: 280,
+        type: "svg",
+        data: url,
+        dotsOptions: {
+          color: "#111827",
+          type: "rounded"
+        },
+        backgroundOptions: {
+          color: "#ffffff"
+        },
+        margin: 8
       });
 
-      document.getElementById("wallet-link").href = data.openid_url;
-      document.getElementById("openid-url").textContent = data.openid_url;
+      document.getElementById("qrcode").innerHTML = "";
+      qrCode.append(document.getElementById("qrcode"));
+
+      document.getElementById("wallet-link").href = url;
+      document.getElementById("openid-url").textContent = url;
       document.getElementById("qr-card").style.display = "block";
       document.getElementById("status").textContent = "QR gegenereerd — scan met je wallet.";
 
-      // Start polling
       pollStatus();
     }
 
@@ -138,17 +143,11 @@
 
         if (data.status === "completed") {
           clearInterval(timer);
+          localStorage.setItem("wallet_session", JSON.stringify(data.result || data));
           document.getElementById("status").textContent = "✅ Wallet geverifieerd!";
           document.getElementById("qr-card").style.display = "none";
           document.getElementById("loading-card").style.display = "block";
-
-          // Sessie opslaan voor dashboard
-          localStorage.setItem("wallet_session", JSON.stringify(data.result || data));
-
-          // Automatisch doorsturen na 1,5 seconde
-          setTimeout(() => {
-            window.location.href = "/dashboard.html";
-          }, 1500);
+          setTimeout(() => window.location.href = "/dashboard.html", 1500);
         } else if (data.status === "failed") {
           clearInterval(timer);
           alert("❌ Verificatie mislukt of geannuleerd.");
