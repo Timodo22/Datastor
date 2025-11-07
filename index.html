@@ -29,8 +29,6 @@
     <p>Of open direct in een nieuw tabblad:</p>
     <a id="wallet-link" class="link" target="_blank" rel="noopener">Open QR-pagina op Paradym</a>
     <pre id="openid-url"></pre>
-
-    <!-- 👉 iframe toont de Paradym QR-pagina (automatisch werkend) -->
     <iframe id="qr-frame"></iframe>
   </div>
 
@@ -58,11 +56,11 @@
       }
 
       currentId = data.request_id;
-      const qrUrl = data.openid_url.trim(); // Dit is de officiële QR-pagina van Paradym
+      const qrUrl = data.openid_url.trim();
 
       document.getElementById("wallet-link").href = qrUrl;
       document.getElementById("openid-url").textContent = qrUrl;
-      document.getElementById("qr-frame").src = qrUrl; // 👉 iframe toont echte Paradym QR
+      document.getElementById("qr-frame").src = qrUrl;
       document.getElementById("qr-card").style.display = "block";
 
       pollStatus();
