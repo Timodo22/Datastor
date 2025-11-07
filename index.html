@@ -4,85 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Paradym Wallet Login</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #eef2ff;
-      padding: 40px;
-      color: #111827;
-      text-align: center;
-    }
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 25px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      max-width: 640px;
-      margin: 20px auto;
-    }
-    .btn {
-      background: #6366f1;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 16px;
-      transition: background 0.2s ease;
-    }
+    body { font-family: 'Segoe UI', sans-serif; background: #eef2ff; padding: 40px; color: #111827; }
+    .card { background: white; border-radius: 14px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); max-width: 640px; margin: 20px auto; text-align: center; }
+    .btn { background: #6366f1; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 16px; transition: background 0.2s ease; }
     .btn:hover { background: #4f46e5; }
-    a.link {
-      display: inline-block;
-      background: #e0e7ff;
-      color: #312e81;
-      text-decoration: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin-top: 15px;
-    }
+    a.link { display: inline-block; background: #e0e7ff; color: #312e81; text-decoration: none; padding: 8px 12px; border-radius: 6px; margin-top: 15px; }
     a.link:hover { background: #c7d2fe; }
-    pre {
-      background: #f8fafc;
-      padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
-      font-size: 13px;
-      text-align: left;
-    }
-    #qrcode {
-      margin: 20px auto;
-      width: 250px;
-      height: 250px;
-    }
+    pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 13px; text-align: left; }
+    iframe { width: 100%; height: 480px; border: none; margin-top: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
   </style>
 </head>
 <body>
 
   <div class="card">
     <h1>🔐 Paradym Wallet Login</h1>
-    <p>Klik hieronder om een nieuwe login-QR te genereren.</p>
+    <p>Klik hieronder om je QR te genereren en in te loggen met je wallet.</p>
     <button class="btn" onclick="createLogin()">Genereer QR</button>
     <div id="status"></div>
   </div>
 
   <div class="card" id="qr-card" style="display:none;">
-    <h2>📱 Scan met je Paradym Wallet</h2>
-    <div id="qrcode"></div>
-    <a id="wallet-link" class="link" target="_blank" rel="noopener">Open direct in Paradym Wallet</a>
+    <h2>📱 Scan deze QR met je Paradym Wallet</h2>
+    <p>Of open direct in een nieuw tabblad:</p>
+    <a id="wallet-link" class="link" target="_blank" rel="noopener">Open QR-pagina op Paradym</a>
     <pre id="openid-url"></pre>
+
+    <!-- 👉 iframe toont de Paradym QR-pagina (automatisch werkend) -->
+    <iframe id="qr-frame"></iframe>
   </div>
 
   <div class="card" id="loading-card" style="display:none;">
     <h2>⏳ Bezig met verificatie...</h2>
-    <p>Even geduld terwijl je login wordt gevalideerd.</p>
+    <p>We controleren je wallet. Je wordt zo doorgestuurd.</p>
   </div>
 
   <script>
     const API_URL = "https://dockerapi-aika.onrender.com";
     let currentId = null;
-    let pollTimer = null;
 
     async function createLogin() {
       document.getElementById("status").textContent = "Verzoek aanmaken...";
@@ -94,45 +53,35 @@
 
       const data = await res.json();
       if (!data.openid_url) {
-        alert("Fout bij aanmaken van verificatie: " + JSON.stringify(data));
+        alert("Fout bij aanmaken: " + JSON.stringify(data));
         return;
       }
 
       currentId = data.request_id;
-      const qrUrl = data.openid_qr_url || data.openid_url;
+      const qrUrl = data.openid_url.trim(); // Dit is de officiële QR-pagina van Paradym
 
-      // Toon QR en link
-      document.getElementById("qrcode").innerHTML = "";
-      new QRCode(document.getElementById("qrcode"), {
-        text: qrUrl,
-        width: 250,
-        height: 250,
-      });
-
-      document.getElementById("wallet-link").href = data.openid_url;
-      document.getElementById("openid-url").textContent = data.openid_url;
+      document.getElementById("wallet-link").href = qrUrl;
+      document.getElementById("openid-url").textContent = qrUrl;
+      document.getElementById("qr-frame").src = qrUrl; // 👉 iframe toont echte Paradym QR
       document.getElementById("qr-card").style.display = "block";
 
       pollStatus();
     }
 
     function pollStatus() {
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = setInterval(async () => {
+      const timer = setInterval(async () => {
         const res = await fetch(`${API_URL}/presentation/${currentId}/status`);
         if (!res.ok) return;
         const data = await res.json();
 
         if (data.status === "completed") {
-          clearInterval(pollTimer);
+          clearInterval(timer);
+          localStorage.setItem("wallet_session", JSON.stringify(data.result || data));
           document.getElementById("qr-card").style.display = "none";
           document.getElementById("loading-card").style.display = "block";
-
-          // Opslaan sessie en redirect
-          localStorage.setItem("wallet_session", JSON.stringify(data));
           setTimeout(() => window.location.href = "/dashboard.html", 1500);
         } else if (data.status === "failed") {
-          clearInterval(pollTimer);
+          clearInterval(timer);
           alert("❌ Verificatie mislukt of geannuleerd.");
         }
       }, 2000);
