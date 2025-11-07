@@ -1,31 +1,70 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; padding: 30px; color: #111827; }
-    .card { background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: 20px auto; }
-    pre { background: #f8fafc; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
-    a { color: #6366f1; text-decoration: none; font-weight: 500; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      padding: 40px;
+      color: #111827;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      max-width: 700px;
+      margin: 20px auto;
+    }
+
+    pre {
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+
+    .btn {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      display: inline-block;
+      margin-top: 15px;
+    }
+
+    .btn:hover {
+      background: #4f46e5;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>👤 Wallet Dashboard</h1>
-    <p id="welcome">Welkom terug!</p>
+    <h1>👤 Paradym Wallet Dashboard</h1>
+    <p id="welcome"></p>
+    <h3>Resultaat:</h3>
     <pre id="wallet-data"></pre>
-    <a href="/frontend">⬅️ Uitloggen</a>
+    <a href="/frontend" class="btn">🔓 Uitloggen</a>
   </div>
 
   <script>
-    const session = localStorage.getItem("wallet_session");
-    if (!session) {
-      document.getElementById("wallet-data").textContent = "Geen sessie gevonden.";
+    const data = localStorage.getItem("wallet_session");
+
+    if (!data) {
+      document.getElementById("welcome").textContent = "Geen actieve sessie gevonden.";
+      document.getElementById("wallet-data").textContent = "Log opnieuw in via de startpagina.";
     } else {
-      const data = JSON.parse(session);
-      document.getElementById("wallet-data").textContent = JSON.stringify(data, null, 2);
+      const session = JSON.parse(data);
+      document.getElementById("welcome").textContent = "Welkom terug! Je wallet is succesvol geverifieerd ✅";
+      document.getElementById("wallet-data").textContent = JSON.stringify(session, null, 2);
     }
   </script>
 </body>
