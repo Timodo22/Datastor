@@ -12,57 +12,37 @@
     .btn { background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
     .btn:hover { background: #dc2626; }
     a { color: #312e81; }
-    code { word-break: break-all; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>🎉 Paradym Verificatie Resultaat</h1>
-    <p>Plak hieronder je Paradym JSON-resultaat om direct een JWT-token te genereren.</p>
-
-    <textarea id="jsonInput" style="width:100%;height:160px;border-radius:8px;border:1px solid #ddd;padding:10px;"></textarea>
-    <br/><br/>
-    <button class="btn" onclick="generateJWT()">Maak JWT</button>
-
-    <h3>JWT-token</h3>
-    <pre id="jwt">-</pre>
-
-    <h3>Payload</h3>
+    <h1>🎉 Ingelogd via Paradym Wallet</h1>
+    <p>Hieronder zie je de backend-response, inclusief je JWT-token.</p>
     <pre id="payload">-</pre>
+    <div class="row">
+      <button class="btn" onclick="logout()">Uitloggen</button>
+      <a href="/frontend">Terug naar login</a>
+    </div>
   </div>
 
   <script>
-    async function generateJWT() {
-      const input = document.getElementById("jsonInput").value;
-      const preJwt = document.getElementById("jwt");
-      const prePayload = document.getElementById("payload");
+    const pre = document.getElementById("payload");
+    const session = localStorage.getItem("wallet_session");
 
-      if (!input) {
-        alert("Plak eerst je Paradym JSON in het tekstveld.");
-        return;
-      }
-
+    if (session) {
       try {
-        const parsed = JSON.parse(input);
-        const res = await fetch("/jwt/from_paradym", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed)
-        });
-
-        if (!res.ok) {
-          const err = await res.json();
-          preJwt.textContent = "❌ Fout: " + (err.detail || res.statusText);
-          prePayload.textContent = "-";
-          return;
-        }
-
-        const data = await res.json();
-        preJwt.textContent = data.jwt_token;
-        prePayload.textContent = JSON.stringify(data.payload, null, 2);
-      } catch (err) {
-        preJwt.textContent = "❌ Ongeldige JSON of serverfout: " + err.message;
+        const data = JSON.parse(session);
+        pre.textContent = JSON.stringify(data, null, 2);
+      } catch {
+        pre.textContent = "Kon data niet parsen.";
       }
+    } else {
+      pre.textContent = "Geen sessie gevonden.";
+    }
+
+    function logout() {
+      localStorage.removeItem("wallet_session");
+      window.location.href = "/frontend";
     }
   </script>
 </body>
