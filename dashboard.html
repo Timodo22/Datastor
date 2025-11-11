@@ -12,13 +12,20 @@
     .btn { background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
     .btn:hover { background: #dc2626; }
     a { color: #312e81; }
+    code { word-break: break-all; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>🎉 Ingelogd via Paradym Wallet</h1>
-    <p>Hieronder zie je de ruwe payload uit de verificatie (zoals opgeslagen door je backend).</p>
+    <p>Hieronder zie je de payload uit de verificatie en je JWT-token.</p>
+
+    <h3>Paradym-payload</h3>
     <pre id="payload">-</pre>
+
+    <h3>JWT-token</h3>
+    <pre id="jwt">-</pre>
+
     <div class="row">
       <button class="btn" onclick="logout()">Uitloggen</button>
       <a href="/frontend">Terug naar login</a>
@@ -27,15 +34,27 @@
 
   <script>
     const raw = localStorage.getItem("wallet_session");
-    const pre = document.getElementById("payload");
+    const prePayload = document.getElementById("payload");
+    const preJwt = document.getElementById("jwt");
+
     if (raw) {
       try {
-        pre.textContent = JSON.stringify(JSON.parse(raw), null, 2);
+        const parsed = JSON.parse(raw);
+        // Toon ruwe payload
+        prePayload.textContent = JSON.stringify(parsed, null, 2);
+        // Toon jwt_token indien aanwezig
+        if (parsed.jwt_token) {
+          preJwt.textContent = parsed.jwt_token;
+        } else {
+          preJwt.textContent = "Geen jwt_token gevonden — controleer of de backend hem toevoegt aan /presentation/{id}/status.";
+        }
       } catch {
-        pre.textContent = raw;
+        prePayload.textContent = raw;
+        preJwt.textContent = "Kon JWT niet uitlezen (ongeldig JSON).";
       }
     } else {
-      pre.textContent = "Geen sessie gevonden. Ga terug naar de login.";
+      prePayload.textContent = "Geen sessie gevonden. Ga terug naar de login.";
+      preJwt.textContent = "-";
     }
 
     function logout() {
